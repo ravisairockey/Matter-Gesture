@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Amilgaul is a gesture-controlled cyberpunk particle sculpture powered by Three.js and MediaPipe Hands.">
+  <title>Amilgaul | Gesture-Controlled Cybernetic Matter</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --cyan: #35f7ff;
+      --magenta: #ff2bd6;
+      --violet: #8b5cff;
+      --blue: #2c7dff;
+      --glass: rgba(8, 16, 34, 0.56);
+      --glass-border: rgba(118, 240, 255, 0.26);
+      --text: rgba(241, 250, 255, 0.94);
+      --muted: rgba(207, 226, 240, 0.68);
+      --panel-width: min(390px, calc(100vw - 32px));
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #02040a;
+      color: var(--text);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 48%, rgba(39, 246, 255, 0.12), transparent 31%),
+        radial-gradient(circle at 18% 16%, rgba(255, 43, 214, 0.18), transparent 27%),
+        radial-gradient(circle at 84% 18%, rgba(93, 82, 255, 0.18), transparent 28%),
+        linear-gradient(135deg, #02040a 0%, #050816 48%, #02040a 100%);
+      z-index: -4;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.34;
+      mix-blend-mode: screen;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.034) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: radial-gradient(circle at center, #000 0%, transparent 72%);
+      z-index: -3;
+    }
+
+    #experience {
+      position: relative;
+      min-height: 100svh;
+      isolation: isolate;
+    }
+
+    #webgl {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      filter: saturate(1.18) contrast(1.06);
+    }
+
+    .aurora {
+      position: fixed;
+      inset: -18%;
+      pointer-events: none;
+      background:
+        conic-gradient(from 110deg at 56% 44%, transparent 0deg, rgba(53, 247, 255, 0.16) 42deg, transparent 92deg, rgba(255, 43, 214, 0.15) 156deg, transparent 228deg, rgba(44, 125, 255, 0.14) 290deg, transparent 360deg);
+      filter: blur(52px);
+      opacity: 0.62;
+      animation: auroraDrift 18s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.13;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.52'/%3E%3C/svg%3E");
+      z-index: 1;
+    }
+
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.18;
+      background: repeating-linear-gradient(to bottom, transparent 0 6px, rgba(114, 231, 255, 0.055) 7px, transparent 8px);
+      z-index: 2;
+    }
+
+    .hero-copy {
+      position: fixed;
+      top: clamp(28px, 5vw, 74px);
+      left: clamp(18px, 5vw, 76px);
+      width: min(920px, calc(100vw - 36px));
+      z-index: 4;
+      pointer-events: none;
+      animation: heroReveal 1200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: max-content;
+      max-width: 100%;
+      margin: 0;
+      font-size: clamp(4.4rem, 12.4vw, 12rem);
+      line-height: 0.78;
+      font-weight: 900;
+      letter-spacing: clamp(-0.5rem, -0.82vw, -0.14rem);
+      text-transform: uppercase;
+      background: linear-gradient(92deg, #f7fdff 0%, var(--cyan) 24%, var(--violet) 52%, var(--magenta) 78%, #fff 100%);
+      background-size: 180% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow:
+        0 0 26px rgba(53, 247, 255, 0.22),
+        0 0 74px rgba(255, 43, 214, 0.2);
+      animation: brandSheen 8s ease-in-out infinite alternate;
+    }
+
+    .brand-mark::after {
+      content: "Amilgaul";
+      position: absolute;
+      inset: 0;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(139, 92, 255, 0.26);
+      transform: translate(0.045em, 0.045em);
+      filter: blur(1px);
+      opacity: 0.65;
+      z-index: -1;
+    }
+
+    .tagline {
+      max-width: 610px;
+      margin: clamp(16px, 2.5vw, 28px) 0 0;
+      font-size: clamp(1.18rem, 2.5vw, 2.04rem);
+      line-height: 1.05;
+      font-weight: 650;
+      letter-spacing: -0.035em;
+      color: rgba(245, 252, 255, 0.92);
+      text-shadow: 0 0 24px rgba(53, 247, 255, 0.18);
+    }
+
+    .instruction {
+      max-width: 560px;
+      margin: 12px 0 0;
+      font-size: clamp(0.98rem, 1.35vw, 1.16rem);
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .enable-button {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      margin-top: 24px;
+      padding: 0 20px;
+      border: 1px solid rgba(63, 245, 255, 0.44);
+      border-radius: 999px;
+      background:
+        linear-gradient(135deg, rgba(53, 247, 255, 0.2), rgba(255, 43, 214, 0.13)),
+        rgba(4, 12, 25, 0.42);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 0 28px rgba(53, 247, 255, 0.18);
+      color: rgba(245, 253, 255, 0.96);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, opacity 180ms ease;
+    }
+
+    .enable-button:hover,
+    .enable-button:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(255, 43, 214, 0.58);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.09) inset,
+        0 0 34px rgba(53, 247, 255, 0.28),
+        0 0 54px rgba(255, 43, 214, 0.14);
+      outline: none;
+    }
+
+    .enable-button:disabled {
+      cursor: default;
+      opacity: 0.7;
+      transform: none;
+    }
+
+    .control-panel {
+      position: fixed;
+      right: clamp(16px, 3.8vw, 54px);
+      bottom: clamp(16px, 4vw, 48px);
+      width: var(--panel-width);
+      z-index: 5;
+      padding: clamp(18px, 2vw, 24px);
+      border: 1px solid var(--glass-border);
+      border-radius: 30px;
+      background:
+        linear-gradient(150deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.035) 42%, rgba(48, 247, 255, 0.08)),
+        var(--glass);
+      box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.45),
+        0 0 80px rgba(53, 247, 255, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(28px) saturate(170%);
+      -webkit-backdrop-filter: blur(28px) saturate(170%);
+      animation: panelReveal 900ms 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .control-panel::before {
+      content: "";
+      position: absolute;
+      inset: 1px;
+      pointer-events: none;
+      border-radius: inherit;
+      background:
+        radial-gradient(circle at 22% 0%, rgba(53, 247, 255, 0.2), transparent 34%),
+        radial-gradient(circle at 88% 18%, rgba(255, 43, 214, 0.17), transparent 36%);
+      opacity: 0.85;
+      z-index: -1;
+    }
+
+    .panel-topline {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .panel-kicker {
+      display: block;
+      margin-bottom: 4px;
+      color: rgba(53, 247, 255, 0.76);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: clamp(1.15rem, 2.4vw, 1.35rem);
+      font-weight: 820;
+      letter-spacing: -0.045em;
+    }
+
+    .panel-orb {
+      width: 42px;
+      height: 42px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 34% 30%, #fff, rgba(53, 247, 255, 0.92) 22%, rgba(139, 92, 255, 0.38) 48%, rgba(255, 43, 214, 0.12) 70%, transparent 72%);
+      box-shadow: 0 0 26px rgba(53, 247, 255, 0.38), 0 0 52px rgba(255, 43, 214, 0.18);
+      animation: orbPulse 2.8s ease-in-out infinite;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .status-item {
+      min-height: 72px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .status-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: rgba(210, 231, 244, 0.62);
+      font-size: 0.64rem;
+      font-weight: 760;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(214, 226, 236, 0.55);
+      box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+    }
+
+    .status-item[data-state="active"] .status-dot,
+    .status-item[data-state="open"] .status-dot {
+      background: var(--cyan);
+      box-shadow: 0 0 18px rgba(53, 247, 255, 0.8);
+    }
+
+    .status-item[data-state="fist"] .status-dot {
+      background: var(--magenta);
+      box-shadow: 0 0 18px rgba(255, 43, 214, 0.8);
+    }
+
+    .status-item[data-state="pending"] .status-dot {
+      background: var(--violet);
+      box-shadow: 0 0 18px rgba(139, 92, 255, 0.8);
+      animation: statusPulse 1s ease-in-out infinite;
+    }
+
+    .status-value {
+      color: rgba(245, 252, 255, 0.94);
+      font-size: 0.92rem;
+      font-weight: 760;
+      letter-spacing: -0.02em;
+    }
+
+    .control-group {
+      margin-top: 17px;
+    }
+
+    .control-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 10px;
+      color: rgba(232, 244, 251, 0.84);
+      font-size: 0.76rem;
+      font-weight: 820;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    output {
+      color: var(--cyan);
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 12px rgba(53, 247, 255, 0.36);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 8px;
+      appearance: none;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--cyan) 0%, var(--magenta) 50%, rgba(255, 255, 255, 0.13) 50%);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.11), 0 0 22px rgba(53, 247, 255, 0.08);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      width: 23px;
+      height: 23px;
+      appearance: none;
+      border: 2px solid rgba(255, 255, 255, 0.88);
+      border-radius: 50%;
+      background: radial-gradient(circle at 34% 30%, #fff 0 10%, var(--cyan) 36%, var(--magenta) 100%);
+      box-shadow: 0 0 16px rgba(53, 247, 255, 0.75), 0 0 30px rgba(255, 43, 214, 0.38);
+      cursor: pointer;
+      transition: transform 170ms ease, box-shadow 170ms ease;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 21px;
+      height: 21px;
+      border: 2px solid rgba(255, 255, 255, 0.88);
+      border-radius: 50%;
+      background: radial-gradient(circle at 34% 30%, #fff 0 10%, var(--cyan) 36%, var(--magenta) 100%);
+      box-shadow: 0 0 16px rgba(53, 247, 255, 0.75), 0 0 30px rgba(255, 43, 214, 0.38);
+      cursor: pointer;
+      transition: transform 170ms ease, box-shadow 170ms ease;
+    }
+
+    input[type="range"]:hover::-webkit-slider-thumb,
+    input[type="range"]:focus-visible::-webkit-slider-thumb {
+      transform: scale(1.13);
+      box-shadow: 0 0 20px rgba(53, 247, 255, 0.95), 0 0 42px rgba(255, 43, 214, 0.55);
+    }
+
+    input[type="range"]:hover::-moz-range-thumb,
+    input[type="range"]:focus-visible::-moz-range-thumb {
+      transform: scale(1.13);
+      box-shadow: 0 0 20px rgba(53, 247, 255, 0.95), 0 0 42px rgba(255, 43, 214, 0.55);
+    }
+
+    .shape-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .shape-button {
+      min-height: 48px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.052);
+      color: rgba(236, 248, 255, 0.82);
+      font-size: 0.72rem;
+      font-weight: 820;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
+    .shape-button:hover,
+    .shape-button:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(53, 247, 255, 0.46);
+      color: #fff;
+      box-shadow: 0 0 24px rgba(53, 247, 255, 0.13);
+      outline: none;
+    }
+
+    .shape-button.is-active {
+      border-color: rgba(255, 43, 214, 0.54);
+      background: linear-gradient(135deg, rgba(53, 247, 255, 0.18), rgba(255, 43, 214, 0.16));
+      color: #fff;
+      box-shadow: 0 0 28px rgba(255, 43, 214, 0.22), inset 0 0 18px rgba(53, 247, 255, 0.08);
+    }
+
+    .fallback {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(18px, 3vw, 36px);
+      transform: translateX(-50%);
+      width: min(560px, calc(100vw - 32px));
+      z-index: 7;
+      padding: 14px 16px;
+      border: 1px solid rgba(255, 43, 214, 0.28);
+      border-radius: 18px;
+      background: rgba(13, 9, 25, 0.7);
+      backdrop-filter: blur(22px);
+      color: rgba(245, 252, 255, 0.88);
+      font-size: 0.9rem;
+      line-height: 1.45;
+      box-shadow: 0 0 34px rgba(255, 43, 214, 0.14);
+    }
+
+    .fallback[hidden] {
+      display: none;
+    }
+
+    #inputVideo {
+      position: fixed;
+      width: 2px;
+      height: 2px;
+      opacity: 0;
+      pointer-events: none;
+      transform: scaleX(-1);
+    }
+
+    @keyframes heroReveal {
+      from {
+        opacity: 0;
+        transform: translate3d(-18px, 18px, 0) scale(0.985);
+        filter: blur(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes panelReveal {
+      from {
+        opacity: 0;
+        transform: translate3d(28px, 28px, 0) scale(0.97);
+        filter: blur(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes brandSheen {
+      from {
+        background-position: 0% 50%;
+      }
+      to {
+        background-position: 100% 50%;
+      }
+    }
+
+    @keyframes auroraDrift {
+      from {
+        transform: rotate(-8deg) scale(1);
+      }
+      to {
+        transform: rotate(8deg) scale(1.08);
+      }
+    }
+
+    @keyframes orbPulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.08);
+      }
+    }
+
+    @keyframes statusPulse {
+      0%, 100% {
+        opacity: 0.52;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .hero-copy {
+        top: clamp(18px, 4vw, 36px);
+      }
+
+      .control-panel {
+        left: 50%;
+        right: auto;
+        bottom: 14px;
+        transform: translateX(-50%);
+        border-radius: 26px;
+      }
+
+      @keyframes panelReveal {
+        from {
+          opacity: 0;
+          transform: translate3d(-50%, 28px, 0) scale(0.97);
+          filter: blur(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(-50%, 0, 0) scale(1);
+          filter: blur(0);
+        }
+      }
+    }
+
+    @media (max-width: 720px) {
+      html,
+      body {
+        overflow: auto;
+      }
+
+      #experience {
+        min-height: 100svh;
+        padding-bottom: 430px;
+      }
+
+      .hero-copy {
+        position: relative;
+        top: auto;
+        left: auto;
+        padding: 26px 18px 0;
+      }
+
+      .brand-mark {
+        font-size: clamp(3.6rem, 20vw, 6.6rem);
+        letter-spacing: -0.22rem;
+      }
+
+      .instruction {
+        max-width: 420px;
+      }
+
+      .control-panel {
+        position: fixed;
+        width: calc(100vw - 24px);
+        max-height: min(420px, calc(100svh - 220px));
+        overflow-y: auto;
+        padding: 16px;
+      }
+
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .shape-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .shape-button {
+        min-height: 52px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="experience" aria-label="Amilgaul interactive 3D cyberpunk particle sculpture">
+    <canvas id="webgl" aria-hidden="true"></canvas>
+    <div class="aurora" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+    <div class="scanlines" aria-hidden="true"></div>
+
+    <section class="hero-copy" aria-labelledby="brandTitle">
+      <h1 id="brandTitle" class="brand-mark">Amilgaul</h1>
+      <p class="tagline">Gesture-controlled cybernetic matter.</p>
+      <p class="instruction">Open your hand to repel. Make a fist to collapse the field.</p>
+      <button id="startButton" class="enable-button" type="button">Enable hand control</button>
+    </section>
+
+    <aside class="control-panel" aria-label="Amilgaul settings panel">
+      <div class="panel-topline">
+        <div>
+          <span class="panel-kicker">Amilgaul</span>
+          <h2 class="panel-title">Liquid Glass Interface</h2>
+        </div>
+        <div class="panel-orb" aria-hidden="true"></div>
+      </div>
+
+      <div class="status-grid" aria-live="polite">
+        <div id="cameraStatus" class="status-item" data-state="pending">
+          <div class="status-label"><span class="status-dot"></span>Webcam</div>
+          <div id="cameraStatusText" class="status-value">Preparing camera</div>
+        </div>
+        <div id="gestureStatus" class="status-item" data-state="none">
+          <div class="status-label"><span class="status-dot"></span>Gesture</div>
+          <div id="gestureStatusText" class="status-value">No Hand</div>
+        </div>
+      </div>
+
+      <label class="control-group" for="particleCount">
+        <span class="control-head">Particle Count <output id="particleCountValue">20,000</output></span>
+        <input id="particleCount" type="range" min="2000" max="20000" step="500" value="20000">
+      </label>
+
+      <label class="control-group" for="forceStrength">
+        <span class="control-head">Force Strength <output id="forceStrengthValue">76%</output></span>
+        <input id="forceStrength" type="range" min="20" max="120" step="1" value="76">
+      </label>
+
+      <label class="control-group" for="interactionRadius">
+        <span class="control-head">Interaction Radius <output id="interactionRadiusValue">64%</output></span>
+        <input id="interactionRadius" type="range" min="25" max="100" step="1" value="64">
+      </label>
+
+      <div class="control-group">
+        <div class="control-head">Morphology <output id="shapeValue">Sphere</output></div>
+        <div class="shape-grid" role="group" aria-label="Particle shape">
+          <button class="shape-button is-active" type="button" data-shape="sphere">Sphere</button>
+          <button class="shape-button" type="button" data-shape="heart">Heart</button>
+          <button class="shape-button" type="button" data-shape="cube">Cube</button>
+          <button class="shape-button" type="button" data-shape="spiral">Spiral</button>
+        </div>
+      </div>
+    </aside>
+
+    <p id="fallback" class="fallback" hidden></p>
+    <video id="inputVideo" playsinline muted></video>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    const MAX_PARTICLES = 20000;
+    const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+    const TWO_PI = Math.PI * 2;
+    const isMobile = window.matchMedia('(max-width: 720px)').matches || navigator.hardwareConcurrency <= 4;
+    const defaultCount = isMobile ? 8000 : 20000;
+
+    const canvas = document.getElementById('webgl');
+    const videoElement = document.getElementById('inputVideo');
+    const fallback = document.getElementById('fallback');
+    const startButton = document.getElementById('startButton');
+    const particleCountSlider = document.getElementById('particleCount');
+    const forceSlider = document.getElementById('forceStrength');
+    const radiusSlider = document.getElementById('interactionRadius');
+    const particleCountValue = document.getElementById('particleCountValue');
+    const forceStrengthValue = document.getElementById('forceStrengthValue');
+    const interactionRadiusValue = document.getElementById('interactionRadiusValue');
+    const shapeValue = document.getElementById('shapeValue');
+    const cameraStatus = document.getElementById('cameraStatus');
+    const cameraStatusText = document.getElementById('cameraStatusText');
+    const gestureStatus = document.getElementById('gestureStatus');
+    const gestureStatusText = document.getElementById('gestureStatusText');
+    const shapeButtons = Array.from(document.querySelectorAll('.shape-button'));
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    } catch (error) {
+      showFallback('WebGL is unavailable in this browser. Amilgaul needs hardware-accelerated graphics for the particle sculpture.');
+      throw error;
+    }
+
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.65);
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x02040a, 1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.autoClear = true;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x040714, 0.038);
+
+    const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 80);
+    camera.position.set(0, 0.12, isMobile ? 8.8 : 7.2);
+
+    const composer = new EffectComposer(renderer);
+    composer.setPixelRatio(pixelRatio);
+    composer.addPass(new RenderPass(scene, camera));
+    const afterimagePass = new AfterimagePass();
+    afterimagePass.uniforms.damp.value = isMobile ? 0.84 : 0.89;
+    composer.addPass(afterimagePass);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), isMobile ? 0.58 : 0.74, 0.62, 0.02);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    const positions = new Float32Array(MAX_PARTICLES * 3);
+    const velocities = new Float32Array(MAX_PARTICLES * 3);
+    const targets = new Float32Array(MAX_PARTICLES * 3);
+    const colors = new Float32Array(MAX_PARTICLES * 3);
+    const sizes = new Float32Array(MAX_PARTICLES);
+    const phases = new Float32Array(MAX_PARTICLES);
+    const seedA = new Float32Array(MAX_PARTICLES);
+    const seedB = new Float32Array(MAX_PARTICLES);
+    const seedC = new Float32Array(MAX_PARTICLES);
+    const seedD = new Float32Array(MAX_PARTICLES);
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+
+    function makeParticleMaterial(sizeScale, opacity, softness) {
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uPixelRatio: { value: pixelRatio },
+          uSizeScale: { value: sizeScale },
+          uOpacity: { value: opacity },
+          uSoftness: { value: softness }
+        },
+        vertexShader: `
+          attribute float aSize;
+          attribute float aPhase;
+          uniform float uTime;
+          uniform float uPixelRatio;
+          uniform float uSizeScale;
+          varying vec3 vColor;
+          varying float vPulse;
+
+          void main() {
+            vColor = color;
+            vPulse = 0.66 + 0.34 * sin(uTime * 2.1 + aPhase);
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            float depth = max(1.0, -mvPosition.z);
+            gl_PointSize = aSize * uSizeScale * uPixelRatio * (250.0 / depth) * (0.82 + vPulse * 0.46);
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: `
+          uniform float uOpacity;
+          uniform float uSoftness;
+          varying vec3 vColor;
+          varying float vPulse;
+
+          void main() {
+            vec2 uv = gl_PointCoord - 0.5;
+            float d = length(uv);
+            float aura = 1.0 - smoothstep(uSoftness, 0.5, d);
+            float core = 1.0 - smoothstep(0.0, 0.18, d);
+            vec3 color = vColor * (0.78 + vPulse * 0.72) + core * vec3(0.75, 0.95, 1.0);
+            gl_FragColor = vec4(color, aura * uOpacity * (0.64 + core * 0.55));
+          }
+        `,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        vertexColors: true
+      });
+    }
+
+    const auraMaterial = makeParticleMaterial(4.8, 0.15, 0.02);
+    const coreMaterial = makeParticleMaterial(1.25, 0.86, 0.08);
+    const sculpture = new THREE.Group();
+    const auraPoints = new THREE.Points(geometry, auraMaterial);
+    const corePoints = new THREE.Points(geometry, coreMaterial);
+    sculpture.add(auraPoints, corePoints);
+    scene.add(sculpture);
+
+    const cursorMaterial = new THREE.MeshBasicMaterial({ color: 0x35f7ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+    const cursor = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 24), cursorMaterial);
+    const cursorHalo = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 24), new THREE.MeshBasicMaterial({ color: 0x35f7ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    scene.add(cursor, cursorHalo);
+
+    const shellMaterial = new THREE.MeshBasicMaterial({ color: 0x35f7ff, transparent: true, opacity: 0.045, wireframe: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(3.1, 3), shellMaterial);
+    scene.add(shell);
+
+    let activeCount = defaultCount;
+    let selectedShape = 'sphere';
+    let forceStrength = Number(forceSlider.value) / 100;
+    let interactionRadius = 0.85 + Number(radiusSlider.value) / 100 * 2.45;
+    let lastTime = performance.now();
+    let handTargetX = 0;
+    let handTargetY = 0;
+    let handTargetZ = 0;
+    let handX = 0;
+    let handY = 0;
+    let handZ = 0;
+    let handInfluence = 0;
+    let lastHandSeen = 0;
+    let openConfidence = 0;
+    let fistConfidence = 0;
+    let gestureState = 'No Hand';
+    let lastGestureUi = '';
+    let cameraInstance = null;
+    let handsInstance = null;
+    let cameraStarted = false;
+
+    initializeParticles();
+    particleCountSlider.value = String(defaultCount);
+    applyParticleCount(defaultCount);
+    updateAllSliderFills();
+    rebuildTargets(selectedShape);
+    updateGestureUi('No Hand');
+
+    function initializeParticles() {
+      for (let i = 0; i < MAX_PARTICLES; i++) {
+        const i3 = i * 3;
+        seedA[i] = Math.random();
+        seedB[i] = Math.random();
+        seedC[i] = Math.random();
+        seedD[i] = Math.random();
+        phases[i] = Math.random() * TWO_PI;
+        sizes[i] = 0.052 + Math.random() * 0.072;
+
+        const paletteMix = seedA[i];
+        const secondary = seedB[i];
+        let r;
+        let g;
+        let b;
+        if (paletteMix < 0.28) {
+          r = 0.18 + secondary * 0.16;
+          g = 0.84 + secondary * 0.16;
+          b = 1.0;
+        } else if (paletteMix < 0.56) {
+          r = 0.96;
+          g = 0.12 + secondary * 0.14;
+          b = 0.78 + secondary * 0.16;
+        } else if (paletteMix < 0.8) {
+          r = 0.5 + secondary * 0.18;
+          g = 0.32 + secondary * 0.18;
+          b = 1.0;
+        } else {
+          r = 0.16 + secondary * 0.2;
+          g = 0.38 + secondary * 0.2;
+          b = 1.0;
+        }
+        colors[i3] = r;
+        colors[i3 + 1] = g;
+        colors[i3 + 2] = b;
+
+        positions[i3] = (Math.random() - 0.5) * 7;
+        positions[i3 + 1] = (Math.random() - 0.5) * 5;
+        positions[i3 + 2] = (Math.random() - 0.5) * 7;
+      }
+      geometry.attributes.color.needsUpdate = true;
+      geometry.attributes.aSize.needsUpdate = true;
+      geometry.attributes.aPhase.needsUpdate = true;
+    }
+
+    function rebuildTargets(shape) {
+      for (let i = 0; i < activeCount; i++) {
+        const i3 = i * 3;
+        let x = 0;
+        let y = 0;
+        let z = 0;
+
+        if (shape === 'sphere') {
+          const k = i + 0.5;
+          const yy = 1 - 2 * k / activeCount;
+          const radiusAtY = Math.sqrt(Math.max(0, 1 - yy * yy));
+          const theta = i * GOLDEN_ANGLE;
+          const shellRadius = 2.15 + (seedA[i] - 0.5) * 0.34;
+          x = Math.cos(theta) * radiusAtY * shellRadius;
+          y = yy * shellRadius;
+          z = Math.sin(theta) * radiusAtY * shellRadius;
+        } else if (shape === 'heart') {
+          const t = (i * GOLDEN_ANGLE + seedA[i] * 0.9) % TWO_PI;
+          const radial = Math.sqrt(seedB[i]);
+          const sx = 16 * Math.pow(Math.sin(t), 3);
+          const sy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+          const depth = (seedC[i] - 0.5) * 1.4 * (1.08 - radial * 0.46);
+          x = sx * radial * 0.135;
+          y = (sy - 2.4) * radial * 0.135 + 0.12;
+          z = depth;
+        } else if (shape === 'cube') {
+          const side = 2.05;
+          const u = (seedB[i] * 2 - 1) * side;
+          const v = (seedC[i] * 2 - 1) * side;
+          const face = Math.floor(seedA[i] * 6);
+          const glassJitter = (seedD[i] - 0.5) * 0.09;
+          if (face === 0) { x = side + glassJitter; y = u; z = v; }
+          if (face === 1) { x = -side + glassJitter; y = u; z = v; }
+          if (face === 2) { x = u; y = side + glassJitter; z = v; }
+          if (face === 3) { x = u; y = -side + glassJitter; z = v; }
+          if (face === 4) { x = u; y = v; z = side + glassJitter; }
+          if (face === 5) { x = u; y = v; z = -side + glassJitter; }
+        } else {
+          const progress = i / Math.max(1, activeCount - 1);
+          const turns = 8.8;
+          const strandOffset = i % 2 === 0 ? 0 : Math.PI;
+          const t = progress * turns * TWO_PI + strandOffset + seedA[i] * 0.2;
+          const envelope = Math.sin(progress * Math.PI);
+          const radius = 0.28 + 1.92 * envelope;
+          const tube = (seedC[i] - 0.5) * 0.34;
+          x = Math.cos(t) * (radius + tube);
+          y = (progress - 0.5) * 4.55 + Math.sin(t * 0.34) * 0.28;
+          z = Math.sin(t) * (radius + tube) + (seedD[i] - 0.5) * 0.26;
+        }
+
+        targets[i3] = x;
+        targets[i3 + 1] = y;
+        targets[i3 + 2] = z;
+      }
+    }
+
+    function applyParticleCount(count) {
+      const previousCount = activeCount;
+      activeCount = Math.min(MAX_PARTICLES, Math.max(2000, count));
+      geometry.setDrawRange(0, activeCount);
+      particleCountValue.textContent = activeCount.toLocaleString('en-US');
+      rebuildTargets(selectedShape);
+
+      if (activeCount > previousCount) {
+        for (let i = previousCount; i < activeCount; i++) {
+          const i3 = i * 3;
+          positions[i3] = targets[i3] + (Math.random() - 0.5) * 0.9;
+          positions[i3 + 1] = targets[i3 + 1] + (Math.random() - 0.5) * 0.9;
+          positions[i3 + 2] = targets[i3 + 2] + (Math.random() - 0.5) * 0.9;
+          velocities[i3] = 0;
+          velocities[i3 + 1] = 0;
+          velocities[i3 + 2] = 0;
+        }
+      }
+      geometry.attributes.position.needsUpdate = true;
+    }
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.033, (now - lastTime) / 1000 || 0.016);
+      const step = Math.min(2, dt * 60);
+      lastTime = now;
+      const time = now * 0.001;
+
+      if (now - lastHandSeen > 320) {
+        handInfluence += (0 - handInfluence) * 0.12;
+        openConfidence *= 0.82;
+        fistConfidence *= 0.82;
+        if (handInfluence < 0.05) {
+          gestureState = 'No Hand';
+        }
+      } else {
+        handInfluence += (1 - handInfluence) * 0.16;
+      }
+
+      handX += (handTargetX - handX) * 0.18;
+      handY += (handTargetY - handY) * 0.18;
+      handZ += (handTargetZ - handZ) * 0.18;
+
+      updateGestureUi(gestureState);
+      updateParticlePhysics(step, time);
+
+      coreMaterial.uniforms.uTime.value = time;
+      auraMaterial.uniforms.uTime.value = time;
+      geometry.attributes.position.needsUpdate = true;
+
+      sculpture.rotation.y = Math.sin(time * 0.18) * 0.14;
+      sculpture.rotation.x = Math.sin(time * 0.11) * 0.06;
+      shell.rotation.y = time * 0.08;
+      shell.rotation.x = Math.sin(time * 0.2) * 0.08;
+
+      const cursorOpacity = handInfluence * (gestureState === 'No Hand' ? 0 : 1);
+      cursor.position.set(handX, handY, handZ);
+      cursorHalo.position.set(handX, handY, handZ);
+      cursorMaterial.opacity = 0.58 * cursorOpacity;
+      cursorHalo.material.opacity = 0.14 * cursorOpacity;
+      const cursorColor = gestureState === 'Fist' ? 0xff2bd6 : 0x35f7ff;
+      cursorMaterial.color.setHex(cursorColor);
+      cursorHalo.material.color.setHex(cursorColor);
+
+      composer.render();
+    }
+
+    function updateParticlePhysics(step, time) {
+      const radius = interactionRadius;
+      const radiusSq = radius * radius;
+      const canInteract = handInfluence > 0.08 && gestureState !== 'No Hand';
+      const isOpen = gestureState === 'Open';
+      const isFist = gestureState === 'Fist';
+      const damping = Math.pow(0.886, step);
+      const returnForce = 0.0175;
+      const pushPower = 0.165 * forceStrength * handInfluence;
+      const pullPower = 0.071 * forceStrength * handInfluence;
+      const swirlPower = 0.012 * forceStrength * handInfluence;
+
+      for (let i = 0; i < activeCount; i++) {
+        const i3 = i * 3;
+        const px = positions[i3];
+        const py = positions[i3 + 1];
+        const pz = positions[i3 + 2];
+        let vx = velocities[i3];
+        let vy = velocities[i3 + 1];
+        let vz = velocities[i3 + 2];
+
+        let ax = (targets[i3] - px) * returnForce;
+        let ay = (targets[i3 + 1] - py) * returnForce;
+        let az = (targets[i3 + 2] - pz) * returnForce;
+
+        const phase = phases[i];
+        ax += Math.sin(time * 1.55 + phase) * 0.0021;
+        ay += Math.cos(time * 1.2 + phase * 0.73) * 0.0018;
+        az += Math.sin(time * 1.38 + phase * 1.17) * 0.0021;
+
+        if (canInteract && isOpen) {
+          const dx = px - handX;
+          const dy = py - handY;
+          const dz = pz - handZ;
+          const distSq = dx * dx + dy * dy + dz * dz;
+          if (distSq < radiusSq) {
+            const dist = Math.sqrt(distSq) + 0.0001;
+            const falloff = Math.pow(1 - dist / radius, 2.25);
+            const force = pushPower * falloff;
+            ax += dx / dist * force;
+            ay += dy / dist * force;
+            az += dz / dist * force;
+          }
+        }
+
+        if (canInteract && isFist) {
+          const centerDist = Math.sqrt(px * px + py * py + pz * pz) + 0.0001;
+          const globalFalloff = 0.48 + Math.min(1, centerDist / 3.2) * 0.52;
+          ax += -px / centerDist * pullPower * globalFalloff - pz * swirlPower;
+          ay += -py / centerDist * pullPower * globalFalloff;
+          az += -pz / centerDist * pullPower * globalFalloff + px * swirlPower;
+        }
+
+        vx = (vx + ax * step) * damping;
+        vy = (vy + ay * step) * damping;
+        vz = (vz + az * step) * damping;
+
+        positions[i3] = px + vx * step;
+        positions[i3 + 1] = py + vy * step;
+        positions[i3 + 2] = pz + vz * step;
+        velocities[i3] = vx;
+        velocities[i3 + 1] = vy;
+        velocities[i3 + 2] = vz;
+      }
+    }
+
+    function handleHandResults(results) {
+      const landmarks = results.multiHandLandmarks && results.multiHandLandmarks[0];
+      if (!landmarks) {
+        return;
+      }
+
+      lastHandSeen = performance.now();
+      const palm = getPalmCenter(landmarks);
+      handTargetX = (0.5 - palm.x) * (isMobile ? 5.6 : 6.8);
+      handTargetY = (0.53 - palm.y) * (isMobile ? 4.35 : 5.3);
+      handTargetZ = clamp((0.02 - palm.z) * 4.2, -1.8, 1.75);
+
+      const gesture = classifyGesture(landmarks);
+      openConfidence = openConfidence * 0.78 + (gesture.open ? 1 : 0) * 0.22;
+      fistConfidence = fistConfidence * 0.78 + (gesture.fist ? 1 : 0) * 0.22;
+
+      if (fistConfidence > 0.58 && fistConfidence > openConfidence + 0.06) {
+        gestureState = 'Fist';
+      } else if (openConfidence > 0.5) {
+        gestureState = 'Open';
+      }
+    }
+
+    function getPalmCenter(landmarks) {
+      const ids = [0, 5, 9, 13, 17];
+      let x = 0;
+      let y = 0;
+      let z = 0;
+      for (let i = 0; i < ids.length; i++) {
+        const point = landmarks[ids[i]];
+        x += point.x;
+        y += point.y;
+        z += point.z || 0;
+      }
+      return { x: x / ids.length, y: y / ids.length, z: z / ids.length };
+    }
+
+    function classifyGesture(landmarks) {
+      const fingers = [
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16],
+        [17, 18, 19, 20]
+      ];
+      let extended = 0;
+      let curled = 0;
+      const wrist = landmarks[0];
+
+      for (let i = 0; i < fingers.length; i++) {
+        const [mcp, pip, , tip] = fingers[i];
+        const angle = jointAngle(landmarks[mcp], landmarks[pip], landmarks[tip]);
+        const tipDistance = distance3(landmarks[tip], wrist);
+        const pipDistance = distance3(landmarks[pip], wrist);
+        const isExtended = angle > 2.45 && tipDistance > pipDistance * 1.05;
+        if (isExtended) {
+          extended++;
+        } else if (angle < 2.22 || tipDistance < pipDistance * 1.12) {
+          curled++;
+        }
+      }
+
+      return {
+        open: extended >= 3,
+        fist: extended <= 1 && curled >= 3
+      };
+    }
+
+    function jointAngle(a, b, c) {
+      const abx = a.x - b.x;
+      const aby = a.y - b.y;
+      const abz = (a.z || 0) - (b.z || 0);
+      const cbx = c.x - b.x;
+      const cby = c.y - b.y;
+      const cbz = (c.z || 0) - (b.z || 0);
+      const dot = abx * cbx + aby * cby + abz * cbz;
+      const magA = Math.sqrt(abx * abx + aby * aby + abz * abz) + 0.0001;
+      const magC = Math.sqrt(cbx * cbx + cby * cby + cbz * cbz) + 0.0001;
+      return Math.acos(clamp(dot / (magA * magC), -1, 1));
+    }
+
+    function distance3(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dz = (a.z || 0) - (b.z || 0);
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    async function startHandTracking() {
+      if (cameraStarted) {
+        return;
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraStatus('Webcam unavailable', 'none');
+        showFallback('This browser does not expose webcam access. The Amilgaul sculpture will continue in autonomous liquid mode.');
+        return;
+      }
+
+      if (!window.Hands || !window.Camera) {
+        setCameraStatus('MediaPipe unavailable', 'none');
+        showFallback('MediaPipe Hands could not load from the CDN. Check your connection, then reload to enable gesture control.');
+        return;
+      }
+
+      setCameraStatus('Requesting permission', 'pending');
+      startButton.disabled = true;
+      startButton.textContent = 'Awaiting permission';
+
+      try {
+        handsInstance = new window.Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        handsInstance.setOptions({
+          maxNumHands: 1,
+          modelComplexity: isMobile ? 0 : 1,
+          minDetectionConfidence: 0.62,
+          minTrackingConfidence: 0.62
+        });
+        handsInstance.onResults(handleHandResults);
+
+        cameraInstance = new window.Camera(videoElement, {
+          onFrame: async () => {
+            await handsInstance.send({ image: videoElement });
+          },
+          width: isMobile ? 640 : 960,
+          height: isMobile ? 480 : 540
+        });
+
+        await cameraInstance.start();
+        cameraStarted = true;
+        setCameraStatus('Camera active', 'active');
+        startButton.textContent = 'Hand control active';
+        fallback.hidden = true;
+      } catch (error) {
+        console.warn('Amilgaul camera start failed:', error);
+        startButton.disabled = false;
+        startButton.textContent = 'Enable hand control';
+        setCameraStatus('Permission needed', 'none');
+        showFallback('Webcam permission is required for gesture control. You can still watch the sculpture morph, or press Enable hand control and allow camera access.');
+      }
+    }
+
+    function setCameraStatus(text, state) {
+      cameraStatusText.textContent = text;
+      cameraStatus.dataset.state = state;
+    }
+
+    function updateGestureUi(state) {
+      if (lastGestureUi === state) {
+        return;
+      }
+      lastGestureUi = state;
+      gestureStatusText.textContent = state;
+      gestureStatus.dataset.state = state === 'Open' ? 'open' : state === 'Fist' ? 'fist' : 'none';
+    }
+
+    function showFallback(message) {
+      fallback.textContent = message;
+      fallback.hidden = false;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function setSliderFill(slider) {
+      const min = Number(slider.min);
+      const max = Number(slider.max);
+      const value = Number(slider.value);
+      const percentage = (value - min) / (max - min) * 100;
+      slider.style.background = `linear-gradient(90deg, var(--cyan) 0%, var(--magenta) ${percentage}%, rgba(255, 255, 255, 0.13) ${percentage}%)`;
+    }
+
+    function updateAllSliderFills() {
+      setSliderFill(particleCountSlider);
+      setSliderFill(forceSlider);
+      setSliderFill(radiusSlider);
+    }
+
+    particleCountSlider.addEventListener('input', () => {
+      applyParticleCount(Number(particleCountSlider.value));
+      setSliderFill(particleCountSlider);
+    });
+
+    forceSlider.addEventListener('input', () => {
+      forceStrength = Number(forceSlider.value) / 100;
+      forceStrengthValue.textContent = `${forceSlider.value}%`;
+      setSliderFill(forceSlider);
+    });
+
+    radiusSlider.addEventListener('input', () => {
+      interactionRadius = 0.85 + Number(radiusSlider.value) / 100 * 2.45;
+      interactionRadiusValue.textContent = `${radiusSlider.value}%`;
+      setSliderFill(radiusSlider);
+    });
+
+    shapeButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        selectedShape = button.dataset.shape;
+        rebuildTargets(selectedShape);
+        shapeButtons.forEach((shapeButton) => {
+          const isActive = shapeButton === button;
+          shapeButton.classList.toggle('is-active', isActive);
+          shapeButton.setAttribute('aria-pressed', String(isActive));
+        });
+        shapeValue.textContent = selectedShape.charAt(0).toUpperCase() + selectedShape.slice(1);
+      });
+    });
+
+    startButton.addEventListener('click', startHandTracking);
+
+    window.addEventListener('resize', () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      camera.aspect = width / height;
+      camera.position.z = window.matchMedia('(max-width: 720px)').matches ? 8.8 : 7.2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+      composer.setSize(width, height);
+      bloomPass.resolution.set(width, height);
+      coreMaterial.uniforms.uPixelRatio.value = pixelRatio;
+      auraMaterial.uniforms.uPixelRatio.value = pixelRatio;
+    });
+
+    setCameraStatus('Ready for permission', 'pending');
+    requestAnimationFrame(animate);
+    window.setTimeout(startHandTracking, 850);
+  </script>
+</body>
+</html>
